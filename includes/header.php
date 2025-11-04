@@ -1,0 +1,48 @@
+<?php
+session_start();
+require_once __DIR__ . '/db.php';
+
+$current_page = basename($_SERVER['PHP_SELF']);
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PierceFlow - Layanan Reservasi Piercing Profesional</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <a href="index.php">💎 PierceFlow</a>
+            </div>
+            <ul class="nav-menu">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <!-- Menu untuk Admin -->
+                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
+                        <li><a href="admin.php" class="<?= $current_page == 'admin.php' ? 'active' : '' ?>">Dashboard</a></li>
+                        <li><a href="manage_services.php" class="<?= $current_page == 'manage_services.php' ? 'active' : '' ?>">Kelola Layanan</a></li>
+                        <li><a href="manage_users.php" class="<?= $current_page == 'manage_users.php' ? 'active' : '' ?>">Kelola User</a></li>
+                    
+                    <!-- Menu untuk User biasa -->
+                    <?php else: ?>
+                        <li><a href="index.php" class="<?= $current_page == 'index.php' ? 'active' : '' ?>">Home</a></li>
+                        <li><a href="services.php" class="<?= $current_page == 'services.php' ? 'active' : '' ?>">Layanan</a></li>
+                        <li><a href="booking.php" class="<?= $current_page == 'booking.php' ? 'active' : '' ?>">Booking</a></li>
+                        <li><a href="dashboard.php" class="<?= $current_page == 'dashboard.php' ? 'active' : '' ?>">Dashboard</a></li>
+                    <?php endif; ?>
+                    
+                    <li><a href="logout.php" class="btn-logout">Logout</a></li>
+                <?php else: ?>
+                    <!-- Menu untuk Guest (belum login) -->
+                    <li><a href="index.php" class="<?= $current_page == 'index.php' ? 'active' : '' ?>">Home</a></li>
+                    <li><a href="services.php" class="<?= $current_page == 'services.php' ? 'active' : '' ?>">Layanan</a></li>
+                    <li><a href="login.php" class="<?= $current_page == 'login.php' ? 'active' : '' ?>">Login</a></li>
+                    <li><a href="register.php" class="btn-register">Register</a></li>
+                <?php endif; ?>
+            </ul>
+        </div>
+    </nav>
+    <main>
