@@ -312,9 +312,10 @@ $stats = $conn->query($stats_query)->fetch_assoc();
                                         </span>
                                     </td>
                                     <td style="padding: 1rem;">
-                                        <form method="POST" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;" onsubmit="return confirm('Ubah status booking #<?= $booking['id'] ?>?')">
+                                        <form method="POST" action="admin.php<?= isset($_GET['filter']) && $_GET['filter'] != 'all' ? '?filter=' . urlencode($_GET['filter']) : '' ?>" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;" onsubmit="return confirmUpdate(<?= $booking['id'] ?>, this)">
                                             <input type="hidden" name="booking_id" value="<?= $booking['id'] ?>">
-                                            <select name="status" style="
+                                            <input type="hidden" name="update_status" value="1">
+                                            <select name="status" id="status_<?= $booking['id'] ?>" style="
                                                 border: 2px solid #e2e8f0; 
                                                 border-radius: 8px; 
                                                 padding: 0.4rem 0.8rem; 
@@ -329,7 +330,7 @@ $stats = $conn->query($stats_query)->fetch_assoc();
                                                 <option value="cancelled" <?= $booking['status'] == 'cancelled' ? 'selected' : '' ?>>Dibatalkan</option>
                                                 <option value="rejected" <?= $booking['status'] == 'rejected' ? 'selected' : '' ?>>Ditolak</option>
                                             </select>
-                                            <button type="submit" name="update_status" style="
+                                            <button type="submit" style="
                                                 background: linear-gradient(135deg, #10b981, #059669); 
                                                 color: white; 
                                                 border: none; 
@@ -442,6 +443,40 @@ $stats = $conn->query($stats_query)->fetch_assoc();
     </style>
     
     <script>
+    function confirmUpdate(bookingId, form) {
+        const selectElement = form.querySelector('select[name="status"]');
+        const newStatus = selectElement.value;
+        const statusNames = {
+            'pending': 'Menunggu',
+            'confirmed': 'Dikonfirmasi', 
+            'cancelled': 'Dibatalkan',
+            'rejected': 'Ditolak'
+        };
+        
+        const confirmed = confirm(`Ubah status booking #${bookingId} menjadi "${statusNames[newStatus]}"?`);
+        
+        if (confirmed) {
+            // Debug: Log form data
+            console.log('Submitting form:', {
+                bookingId: bookingId,
+                newStatus: newStatus,
+                formAction: form.action,
+                formMethod: form.method
+            });
+            
+            // Tampilkan loading indicator
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '⏳ Updating...';
+            submitBtn.disabled = true;
+            
+            // Allow form to submit
+            return true;
+        }
+        
+        return false;
+    }
+    
     function exportBookingData() {
         // Simple CSV export function
         const table = document.querySelector('table');
@@ -481,6 +516,20 @@ $stats = $conn->query($stats_query)->fetch_assoc();
             document.body.removeChild(link);
         }
     }
+    
+    // Auto-hide success/error messages after 5 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+            setTimeout(function() {
+                alert.style.transition = 'opacity 0.5s ease';
+                alert.style.opacity = '0';
+                setTimeout(function() {
+                    alert.style.display = 'none';
+                }, 500);
+            }, 5000);
+        });
+    });
     </script>
 </div>
 
