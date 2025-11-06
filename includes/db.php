@@ -1,20 +1,20 @@
 <?php
-// Database connection
-$host = 'localhost';
-$dbname = 'pierceflow_db';
-$username = 'root';
-$password = '';
+require_once __DIR__ . '/railway_database.php';
 
 try {
-    $conn = new mysqli($host, $username, $password, $dbname);
+    // Use Railway database configuration
+    $conn = RailwayDatabase::getConnection();
     
-    if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
+    // Setup tables if needed (for first deployment)
+    if (isset($_GET['setup']) && $_GET['setup'] === 'db') {
+        RailwayDatabase::setupTables();
+        RailwayDatabase::seedDefaultData();
+        echo "Database setup completed successfully!";
+        exit;
     }
     
-    $conn->set_charset("utf8mb4");
-    
 } catch (Exception $e) {
-    die("Database error: " . $e->getMessage());
+    error_log("Database error in db.php: " . $e->getMessage());
+    die("Database connection failed. Please try again later.");
 }
 ?>

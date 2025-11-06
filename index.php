@@ -88,6 +88,27 @@ if ($slider_result && $slider_result->num_rows > 0) {
                        onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'; this.style.transform='translateY(0)'">
                         <?= isset($_SESSION['user_id']) ? '📅 Booking Sekarang' : '🚀 Daftar Sekarang' ?>
                     </a>
+                    
+                    <?php if (!isset($_SESSION['user_id'])): ?>
+                    <a href="konsultasi.php" style="
+                        background: rgba(16, 185, 129, 0.2);
+                        color: white;
+                        text-decoration: none;
+                        padding: 1rem 2rem;
+                        border-radius: 15px;
+                        font-weight: 700;
+                        font-size: 1.1rem;
+                        transition: all 0.3s ease;
+                        border: 2px solid rgba(16, 185, 129, 0.3);
+                        backdrop-filter: blur(10px);
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                    " onmouseover="this.style.background='rgba(16, 185, 129, 0.3)'; this.style.transform='translateY(-3px)'" 
+                       onmouseout="this.style.background='rgba(16, 185, 129, 0.2)'; this.style.transform='translateY(0)'">
+                        💬 Konsultasi Gratis
+                    </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

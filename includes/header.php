@@ -34,6 +34,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     <?php if (isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
                         <li><a href="admin.php" class="<?= $current_page == 'admin.php' ? 'active' : '' ?>">Dashboard</a></li>
                         <li><a href="manage_catalog.php" class="<?= $current_page == 'manage_catalog.php' ? 'active' : '' ?>">Kelola Katalog</a></li>
+                        <li><a href="manage_consultations.php" class="<?= $current_page == 'manage_consultations.php' ? 'active' : '' ?>">Konsultasi</a></li>
+                        <li><a href="admin_notifications.php" class="<?= $current_page == 'admin_notifications.php' ? 'active' : '' ?>">Notifikasi</a></li>
+                        <li><a href="admin_config_notifications.php" class="<?= $current_page == 'admin_config_notifications.php' ? 'active' : '' ?>">Config</a></li>
                         <li><a href="manage_users.php" class="<?= $current_page == 'manage_users.php' ? 'active' : '' ?>">Kelola User</a></li>
                     
                     <!-- Menu untuk User biasa -->
@@ -48,6 +51,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     <!-- Menu untuk Guest (belum login) -->
                     <li><a href="index.php" class="<?= $current_page == 'index.php' ? 'active' : '' ?>">Home</a></li>
                     <li><a href="catalog.php" class="<?= $current_page == 'catalog.php' ? 'active' : '' ?>">Katalog</a></li>
+                    <li><a href="konsultasi.php" class="<?= $current_page == 'konsultasi.php' ? 'active' : '' ?>">Konsultasi</a></li>
                     <li><a href="login.php" class="<?= $current_page == 'login.php' ? 'active' : '' ?>">Login</a></li>
                     <li><a href="register.php" class="btn-register">Register</a></li>
                 <?php endif; ?>

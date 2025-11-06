@@ -1,0 +1,30 @@
+{
+    "name": "pierceflow/booking-system",
+    "description": "Professional Piercing Studio Booking System with WhatsApp Notifications",
+    "type": "project",
+    "require": {
+        "php": "^8.0",
+        "phpmailer/phpmailer": "^6.8",
+        "ext-mysqli": "*",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "require-dev": {
+        "heroku/heroku-buildpack-php": "*"
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "echo 'Starting PierceFlow deployment setup...'",
+            "php -r \"if(file_exists('includes/railway_database.php')) { require_once 'includes/railway_database.php'; try { RailwayDatabase::getConnection(); echo 'Database connection: OK' . PHP_EOL; } catch(Exception \\$e) { echo 'Database connection: FAILED - ' . \\$e->getMessage() . PHP_EOL; } } else { echo 'Railway database configuration not found' . PHP_EOL; }\"",
+            "echo 'Installation completed successfully'"
+        ],
+        "railway-deploy": [
+            "php -r \"require_once 'includes/railway_database.php'; RailwayDatabase::setupTables(); RailwayDatabase::seedDefaultData(); echo 'Database setup completed for Railway deployment' . PHP_EOL;\""
+        ]
+    },
+    "autoload": {
+        "psr-4": {
+            "PierceFlow\\": "src/"
+        }
+    }
+}
