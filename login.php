@@ -55,6 +55,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <div class="container">
     <div class="form-container">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <img src="Images/Logo.jfif" alt="PierceFlow Logo" 
+                 style="height: 60px; width: auto; border-radius: 10px; box-shadow: 0 4px 20px rgba(139, 92, 246, 0.2);">
+        </div>
         <h2 class="page-title">Login</h2>
         
         <?php if ($error): ?>

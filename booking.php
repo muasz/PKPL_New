@@ -20,12 +20,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $service_id = intval($_POST['service_id']);
     $date = $_POST['date'];
     $time = $_POST['time'];
+    $service_type = $_POST['service_type'] ?? '';
     $address = trim($_POST['address']);
     $user_id = $_SESSION['user_id'];
     
     // Validasi
-    if (empty($service_id) || empty($date) || empty($time)) {
+    if (empty($service_id) || empty($date) || empty($time) || empty($service_type)) {
         $error = 'Semua field wajib diisi!';
+    } elseif ($service_type === 'home_service' && empty($address)) {
+        $error = 'Alamat wajib diisi untuk layanan home service!';
     } else {
         // Validasi tanggal tidak boleh di masa lalu
         $booking_date = new DateTime($date);
@@ -45,8 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $error = 'Jadwal tersebut sudah dibooking! Silakan pilih waktu lain.';
             } else {
                 // Insert booking
-                $stmt = $conn->prepare("INSERT INTO bookings (user_id, service_id, date, time, address, status) VALUES (?, ?, ?, ?, ?, 'pending')");
-                $stmt->bind_param("iisss", $user_id, $service_id, $date, $time, $address);
+                $stmt = $conn->prepare("INSERT INTO bookings (user_id, service_id, service_type, date, time, address, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')");
+                $stmt->bind_param("iissss", $user_id, $service_id, $service_type, $date, $time, $address);
                 
                 if ($stmt->execute()) {
                     $success = 'Booking berhasil! Status: Menunggu konfirmasi.';
@@ -153,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             <!-- Form Content -->
             <div style="padding: 2.5rem;">
-                <form method="POST" action="" id="bookingForm" style="display: grid; gap: 2rem;">
+                <form method="POST" action="" id="bookingForm" onsubmit="return validateForm()" style="display: grid; gap: 2rem;">
                     
                     <!-- Service Selection -->
                     <div>
@@ -182,6 +185,66 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <?php endwhile; ?>
                             <?php endif; ?>
                         </select>
+                    </div>
+                    
+                    <!-- Service Type Selection -->
+                    <div>
+                        <label style="display: block; margin-bottom: 0.8rem; font-weight: 700; color: #334155; font-size: 1.1rem;">
+                            📍 Pilih Jenis Layanan *
+                        </label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <!-- Studio Visit Option -->
+                            <label style="
+                                display: flex;
+                                align-items: center;
+                                padding: 1.2rem;
+                                border: 2px solid #e2e8f0;
+                                border-radius: 15px;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                                background: white;
+                            " onmouseover="this.style.borderColor='#8b5cf6'; this.style.backgroundColor='#faf5ff'"
+                               onmouseout="this.style.borderColor='#e2e8f0'; this.style.backgroundColor='white'">
+                                <input type="radio" name="service_type" value="studio" required 
+                                       <?= (isset($_POST['service_type']) && $_POST['service_type'] === 'studio') ? 'checked' : '' ?>
+                                       style="margin-right: 0.8rem; transform: scale(1.2);"
+                                       onchange="toggleAddressField()">
+                                <div>
+                                    <div style="font-weight: 700; color: #8b5cf6; font-size: 1rem; margin-bottom: 0.3rem;">
+                                        🏢 Datang ke Studio
+                                    </div>
+                                    <div style="font-size: 0.85rem; color: #64748b;">
+                                        Kunjungi studio kami untuk layanan profesional
+                                    </div>
+                                </div>
+                            </label>
+                            
+                            <!-- Home Service Option -->
+                            <label style="
+                                display: flex;
+                                align-items: center;
+                                padding: 1.2rem;
+                                border: 2px solid #e2e8f0;
+                                border-radius: 15px;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                                background: white;
+                            " onmouseover="this.style.borderColor='#10b981'; this.style.backgroundColor='#f0fdf4'"
+                               onmouseout="this.style.borderColor='#e2e8f0'; this.style.backgroundColor='white'">
+                                <input type="radio" name="service_type" value="home_service" required 
+                                       <?= (isset($_POST['service_type']) && $_POST['service_type'] === 'home_service') ? 'checked' : '' ?>
+                                       style="margin-right: 0.8rem; transform: scale(1.2);"
+                                       onchange="toggleAddressField()">
+                                <div>
+                                    <div style="font-weight: 700; color: #10b981; font-size: 1rem; margin-bottom: 0.3rem;">
+                                        🏠 Home Service
+                                    </div>
+                                    <div style="font-size: 0.85rem; color: #64748b;">
+                                        Kami datang ke lokasi Anda
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
                     </div>
                     
                     <!-- Date and Time Grid -->
@@ -242,13 +305,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                     </div>
                     
-                    <!-- Address -->
-                    <div>
+                    <!-- Address Section (Dynamic based on service type) -->
+                    <div id="addressField" style="display: none;">
                         <label style="display: block; margin-bottom: 0.8rem; font-weight: 700; color: #334155; font-size: 1.1rem;">
-                            🏠 Alamat (Opsional)
+                            <span id="addressLabel">📍 Informasi Alamat</span>
                         </label>
-                        <textarea name="address" rows="4"
-                                  placeholder="Masukkan alamat jika diperlukan untuk konsultasi atau layanan home service..."
+                        <textarea name="address" id="addressInput" rows="4"
+                                  placeholder="Masukkan alamat lengkap untuk layanan home service..."
                                   style="
                                       width: 100%;
                                       padding: 1rem 1.2rem;
@@ -262,6 +325,109 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                   "
                                   onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16,185,129,0.1)'"
                                   onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none'"><?= isset($_POST['address']) ? htmlspecialchars($_POST['address']) : '' ?></textarea>
+                        
+                        <!-- Studio Address Info with Map (when studio is selected) -->
+                        <div id="studioInfo" style="display: none; margin-top: 1rem; padding: 1.5rem; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-radius: 15px; border-left: 4px solid #8b5cf6; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);">
+                            <div style="font-weight: 700; color: #8b5cf6; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: 1.2rem;">
+                                🏢 Lokasi Studio Kami
+                            </div>
+                            
+                            <!-- Studio Info Grid -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                                <!-- Address Details -->
+                                <div style="background: white; padding: 1rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                                    <div style="color: #475569; line-height: 1.8;">
+                                        <div style="font-weight: 700; color: #8b5cf6; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                            📍 <strong>PierceFlow Studio</strong>
+                                        </div>
+                                        <div style="margin-bottom: 0.5rem;">
+                                            📍 Jl. Profesional No. 123, Kota Jakarta Selatan
+                                        </div>
+                                        <div style="margin-bottom: 0.5rem;">
+                                            🕒 Senin - Minggu, 09:00 - 21:00
+                                        </div>
+                                        <div style="margin-bottom: 0.5rem;">
+                                            📞 (021) 1234-5678
+                                        </div>
+                                        <div>
+                                            📧 info@pierceflow.com
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Quick Actions -->
+                                <div style="background: white; padding: 1rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                                    <div style="font-weight: 700; color: #8b5cf6; margin-bottom: 0.8rem;">
+                                        🚀 Quick Actions
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <a href="https://maps.google.com/?q=Jl.+Profesional+No.+123,+Jakarta+Selatan" 
+                                           target="_blank"
+                                           style="
+                                               display: flex;
+                                               align-items: center;
+                                               gap: 0.5rem;
+                                               padding: 0.5rem;
+                                               background: #f0fdf4;
+                                               color: #16a34a;
+                                               text-decoration: none;
+                                               border-radius: 8px;
+                                               font-size: 0.9rem;
+                                               font-weight: 600;
+                                               transition: all 0.3s ease;
+                                           "
+                                           onmouseover="this.style.background='#dcfce7'"
+                                           onmouseout="this.style.background='#f0fdf4'">
+                                            🗺️ Buka di Google Maps
+                                        </a>
+                                        <a href="tel:+622112345678"
+                                           style="
+                                               display: flex;
+                                               align-items: center;
+                                               gap: 0.5rem;
+                                               padding: 0.5rem;
+                                               background: #eff6ff;
+                                               color: #2563eb;
+                                               text-decoration: none;
+                                               border-radius: 8px;
+                                               font-size: 0.9rem;
+                                               font-weight: 600;
+                                               transition: all 0.3s ease;
+                                           "
+                                           onmouseover="this.style.background='#dbeafe'"
+                                           onmouseout="this.style.background='#eff6ff'">
+                                            📞 Hubungi Studio
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Google Maps Embed -->
+                            <div style="border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                                <iframe 
+                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.1234567890!2d106.8123456!3d-6.2345678!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNsKwMTQnMDQuNCJTIDEwNsKwNDgnNTIuNCJF!5e0!3m2!1sen!2sid!4v1699123456789!5m2!1sen!2sid"
+                                    width="100%" 
+                                    height="300" 
+                                    style="border:0; border-radius: 12px;" 
+                                    allowfullscreen="" 
+                                    loading="lazy" 
+                                    referrerpolicy="no-referrer-when-downgrade">
+                                </iframe>
+                            </div>
+                            
+                            <!-- Map Instructions -->
+                            <div style="margin-top: 1rem; padding: 1rem; background: white; border-radius: 12px; border-left: 4px solid #10b981;">
+                                <div style="font-weight: 700; color: #10b981; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                    🧭 Petunjuk Arah:
+                                </div>
+                                <div style="color: #475569; font-size: 0.9rem; line-height: 1.6;">
+                                    • <strong>Dari Stasiun MRT Blok M:</strong> Naik ojek online 15 menit<br>
+                                    • <strong>Dari Terminal Blok M:</strong> Naik busway TransJakarta koridor 1<br>
+                                    • <strong>Parkir:</strong> Tersedia parkir gratis di basement gedung<br>
+                                    • <strong>Landmark:</strong> Seberang Mall Plaza Senayan, gedung warna biru
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Important Notes -->
@@ -312,7 +478,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div style="background: white; border-radius: 20px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                 <h3 style="margin: 0 0 1rem 0; color: #334155; font-weight: 700;">⚡ Quick Links</h3>
                 <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                    <a href="services.php" style="
+                    <a href="catalog.php" style="
                         background: #f8fafc;
                         color: #475569;
                         text-decoration: none;
@@ -326,7 +492,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         gap: 0.5rem;
                     " onmouseover="this.style.background='#e2e8f0'; this.style.transform='translateY(-1px)'" 
                        onmouseout="this.style.background='#f8fafc'; this.style.transform='translateY(0)'">
-                        🛠️ Lihat Layanan
+                        � Lihat Katalog
                     </a>
                     <a href="dashboard.php" style="
                         background: #f8fafc;
@@ -349,5 +515,106 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
     </div>
 </div>
+
+<script>
+    // Toggle address field based on service type
+    function toggleAddressField() {
+        const serviceType = document.querySelector('input[name="service_type"]:checked');
+        const addressField = document.getElementById('addressField');
+        const addressInput = document.getElementById('addressInput');
+        const addressLabel = document.getElementById('addressLabel');
+        const studioInfo = document.getElementById('studioInfo');
+        
+        console.log('toggleAddressField called, serviceType:', serviceType ? serviceType.value : 'none');
+        
+        if (serviceType) {
+            addressField.style.display = 'block';
+            
+            if (serviceType.value === 'home_service') {
+                // Show address input for home service
+                addressInput.style.display = 'block';
+                addressInput.required = true;
+                addressLabel.innerHTML = '🏠 Alamat Home Service *';
+                addressInput.placeholder = 'Masukkan alamat lengkap untuk layanan home service...';
+                studioInfo.style.display = 'none';
+                
+                console.log('Showing home service address input');
+            } else if (serviceType.value === 'studio') {
+                // Hide address input and show studio map/info
+                addressInput.style.display = 'none';
+                addressInput.required = false;
+                addressInput.value = '';
+                addressLabel.innerHTML = '🗺️ Lokasi Studio Kami';
+                
+                // Show studio info with smooth transition
+                studioInfo.style.display = 'block';
+                studioInfo.style.opacity = '0';
+                setTimeout(() => {
+                    studioInfo.style.transition = 'opacity 0.5s ease-in-out';
+                    studioInfo.style.opacity = '1';
+                }, 50);
+                
+                console.log('Showing studio map and info');
+            }
+        } else {
+            addressField.style.display = 'none';
+            addressInput.required = false;
+            console.log('No service type selected, hiding address field');
+        }
+    }
+
+    // Form validation
+    function validateForm() {
+        const nama = document.querySelector('input[name="nama"]').value;
+        const email = document.querySelector('input[name="email"]').value;
+        const phone = document.querySelector('input[name="phone"]').value;
+        const service = document.querySelector('select[name="service_id"]').value;
+        const tanggal = document.querySelector('input[name="tanggal"]').value;
+        const waktu = document.querySelector('input[name="waktu"]').value;
+        const serviceType = document.querySelector('input[name="service_type"]:checked');
+        
+        if (!nama || !email || !phone || !service || !tanggal || !waktu || !serviceType) {
+            alert('Mohon lengkapi semua field yang diperlukan!');
+            return false;
+        }
+        
+        // Check address for home service
+        if (serviceType && serviceType.value === 'home_service') {
+            const address = document.querySelector('textarea[name="address"]').value;
+            if (!address || address.trim() === '') {
+                alert('Alamat wajib diisi untuk layanan home service!');
+                return false;
+            }
+        }
+        
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            alert('Format email tidak valid!');
+            return false;
+        }
+        
+        // Phone validation
+        const phoneRegex = /^[0-9\-\+\s\(\)]+$/;
+        if (!phoneRegex.test(phone)) {
+            alert('Format nomor telepon tidak valid!');
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Set minimum date to today and handle initial service type state
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.querySelector('input[name="tanggal"]');
+        if (dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.min = today;
+        }
+        
+        // Handle initial service type selection (on page load with POST data)
+        toggleAddressField();
+    });
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

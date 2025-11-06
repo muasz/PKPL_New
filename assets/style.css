@@ -23,6 +23,69 @@ body {
     line-height: 1.6;
     color: var(--text-color);
     background-color: var(--bg-color);
+    margin: 0;
+    padding: 0;
+}
+
+main {
+    margin: 0;
+    padding: 0;
+    display: block;
+}
+
+/* Remove any potential gaps */
+.navbar {
+    margin-bottom: 0 !important;
+    border-bottom: none;
+}
+
+#hero-slider {
+    margin-top: -10px !important;
+    padding-top: 10px !important;
+    border-top: none !important;
+    position: relative !important;
+}
+
+/* Ensure no gaps between elements */
+* {
+    vertical-align: baseline;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+/* Specific gap remover only for hero */
+.navbar + main #hero-slider {
+    margin-top: -3px !important;
+}
+
+/* Targeted gap remover - only for hero section */
+main {
+    margin: 0;
+    padding: 0;
+}
+
+main > div {
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+/* Remove whitespace between navbar and first element */
+nav + main {
+    display: block !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+#hero-slider {
+    display: flex !important;
+    margin-top: -2px !important;
+    padding-top: 2px !important;
+    font-size: 16px;
+    line-height: 1.6;
 }
 
 .container {
@@ -37,7 +100,10 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: 2000;
+    margin: 0;
+    padding: 0;
+    border: 0;
 }
 
 .navbar .container {
@@ -52,6 +118,23 @@ body {
     font-weight: bold;
     color: var(--primary-color);
     text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.nav-brand a:hover {
+    transform: translateY(-1px);
+}
+
+.nav-brand img {
+    transition: all 0.3s ease;
+}
+
+.nav-brand a:hover img {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
 }
 
 .nav-menu {

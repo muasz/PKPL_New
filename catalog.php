@@ -12,6 +12,10 @@ if ($filter_category != 'all') {
 $catalog_query = "SELECT * FROM catalog $filter_condition ORDER BY created_at DESC";
 $catalog_result = $conn->query($catalog_query);
 
+// Hitung total semua items
+$total_count_query = $conn->query("SELECT COUNT(*) as total FROM catalog");
+$total_count = $total_count_query->fetch_assoc()['total'];
+
 // Hitung jumlah per kategori
 $categories = ['telinga', 'hidung', 'industrial', 'helix', 'tragus', 'septum', 'lainnya'];
 $category_counts = [];
@@ -36,7 +40,7 @@ foreach ($categories as $cat) {
             <a href="catalog.php?category=all" 
                style="text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 25px; font-weight: 600; font-size: 0.9rem; transition: all 0.3s ease;
                       <?= $filter_category == 'all' ? 'background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;' : 'background: #f1f5f9; color: #64748b;' ?>">
-                Semua (<?= $catalog_result->num_rows ?>)
+                Semua (<?= $total_count ?>)
             </a>
             
             <?php

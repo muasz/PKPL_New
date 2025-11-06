@@ -124,7 +124,7 @@ $result = $stmt->get_result();
             <div style="opacity: 0.9; font-size: 0.95rem;">Reservasi layanan piercing sekarang</div>
         </a>
         
-        <a href="services.php" style="
+        <a href="catalog.php" style="
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
             text-decoration: none;
@@ -135,9 +135,9 @@ $result = $stmt->get_result();
             box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
         " onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 15px 40px rgba(16, 185, 129, 0.4)'" 
            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(16, 185, 129, 0.3)'">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">🛠️</div>
-            <div style="font-weight: 700; font-size: 1.2rem; margin-bottom: 0.5rem;">Lihat Layanan</div>
-            <div style="opacity: 0.9; font-size: 0.95rem;">Jelajahi semua layanan kami</div>
+            <div style="font-size: 3rem; margin-bottom: 1rem;">�</div>
+            <div style="font-weight: 700; font-size: 1.2rem; margin-bottom: 0.5rem;">Lihat Katalog</div>
+            <div style="opacity: 0.9; font-size: 0.95rem;">Portfolio hasil piercing kami</div>
         </a>
         
         <a href="#account-info" style="

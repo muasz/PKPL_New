@@ -51,10 +51,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_status'])) {
         
         // Redirect untuk refresh data
         if (isset($success)) {
-            $redirect_url = 'admin.php?success=' . urlencode($success);
+            $redirect_params = ['success=' . urlencode($success)];
             if (isset($_GET['filter']) && $_GET['filter'] != 'all') {
-                $redirect_url .= '&filter=' . urlencode($_GET['filter']);
+                $redirect_params[] = 'filter=' . urlencode($_GET['filter']);
             }
+            if (isset($_GET['type']) && $_GET['type'] != 'all') {
+                $redirect_params[] = 'type=' . urlencode($_GET['type']);
+            }
+            $redirect_url = 'admin.php?' . implode('&', $redirect_params);
             header('Location: ' . $redirect_url);
             exit;
         }
@@ -116,6 +120,8 @@ $stats_query = "SELECT
     COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed_bookings,
     COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_bookings,
     COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_bookings,
+    COUNT(CASE WHEN service_type = 'studio' THEN 1 END) as studio_bookings,
+    COUNT(CASE WHEN service_type = 'home_service' THEN 1 END) as home_service_bookings,
     SUM(CASE WHEN status = 'confirmed' THEN s.price ELSE 0 END) as total_revenue
     FROM bookings b
     JOIN services s ON b.service_id = s.id";
@@ -124,11 +130,22 @@ $stats = $conn->query($stats_query)->fetch_assoc();
 // Total users
 $users_count = $conn->query("SELECT COUNT(*) as total FROM users WHERE role = 'user'")->fetch_assoc()['total'];
 
-// Filter berdasarkan status
+// Filter berdasarkan status dan service type
 $filter_status = isset($_GET['filter']) ? $_GET['filter'] : 'all';
-$filter_condition = '';
+$filter_type = isset($_GET['type']) ? $_GET['type'] : 'all';
+$filter_conditions = [];
+
 if ($filter_status != 'all') {
-    $filter_condition = " WHERE b.status = '" . $conn->real_escape_string($filter_status) . "'";
+    $filter_conditions[] = "b.status = '" . $conn->real_escape_string($filter_status) . "'";
+}
+
+if ($filter_type != 'all') {
+    $filter_conditions[] = "b.service_type = '" . $conn->real_escape_string($filter_type) . "'";
+}
+
+$filter_condition = '';
+if (!empty($filter_conditions)) {
+    $filter_condition = " WHERE " . implode(' AND ', $filter_conditions);
 }
 
 // Ambil semua booking dengan info user dan service (fresh data)
@@ -194,6 +211,34 @@ $stats = $conn->query($stats_query)->fetch_assoc();
             <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.3rem;">Pengguna terdaftar</div>
         </div>
         
+        <!-- Service Type Distribution -->
+        <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; position: relative; overflow: hidden; padding: 2rem;">
+            <div style="position: absolute; top: 10px; right: 15px; font-size: 2.5rem; opacity: 0.3;">🏢🏠</div>
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div class="stat-label" style="color: rgba(255,255,255,0.95); font-weight: 600; font-size: 1.1rem;">Tipe Layanan</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; gap: 1rem;">
+                    <div style="text-align: center; flex: 1;">
+                        <div style="font-size: 1.8rem; font-weight: bold; color: white; margin-bottom: 0.2rem;">
+                            <?= $stats['studio_bookings'] ?>
+                        </div>
+                        <div style="font-size: 0.8rem; opacity: 0.9; display: flex; align-items: center; justify-content: center; gap: 0.3rem;">
+                            🏢 Studio
+                        </div>
+                    </div>
+                    <div style="text-align: center; flex: 1;">
+                        <div style="font-size: 1.8rem; font-weight: bold; color: white; margin-bottom: 0.2rem;">
+                            <?= $stats['home_service_bookings'] ?>
+                        </div>
+                        <div style="font-size: 0.8rem; opacity: 0.9; display: flex; align-items: center; justify-content: center; gap: 0.3rem;">
+                            🏠 Home Service
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Cancelled/Rejected -->
         <div class="stat-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; position: relative; overflow: hidden; padding: 2rem;">
             <div style="position: absolute; top: 15px; right: 20px; font-size: 3rem; opacity: 0.3;">❌</div>
@@ -235,24 +280,64 @@ $stats = $conn->query($stats_query)->fetch_assoc();
                     </h2>
                     <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">Kelola semua reservasi pelanggan</p>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <label style="font-size: 0.9rem; font-weight: 500;">Filter:</label>
-                    <select id="filterStatus" onchange="window.location.href='admin.php?filter=' + this.value" style="
-                        background: rgba(255,255,255,0.2); 
-                        border: 1px solid rgba(255,255,255,0.3); 
-                        border-radius: 8px; 
-                        padding: 0.5rem 1rem; 
+                <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                    <!-- Status Filter -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-size: 0.9rem; font-weight: 500;">Status:</label>
+                        <select id="filterStatus" onchange="updateFilters()" style="
+                            background: rgba(255,255,255,0.2); 
+                            border: 1px solid rgba(255,255,255,0.3); 
+                            border-radius: 8px; 
+                            padding: 0.5rem 1rem; 
+                            color: white;
+                            font-size: 0.9rem;
+                            backdrop-filter: blur(10px);
+                            cursor: pointer;
+                        ">
+                            <option value="all" <?= $filter_status == 'all' ? 'selected' : '' ?> style="color: #333;">Semua Status</option>
+                            <option value="pending" <?= $filter_status == 'pending' ? 'selected' : '' ?> style="color: #333;">Menunggu</option>
+                            <option value="confirmed" <?= $filter_status == 'confirmed' ? 'selected' : '' ?> style="color: #333;">Dikonfirmasi</option>
+                            <option value="cancelled" <?= $filter_status == 'cancelled' ? 'selected' : '' ?> style="color: #333;">Dibatalkan</option>
+                            <option value="rejected" <?= $filter_status == 'rejected' ? 'selected' : '' ?> style="color: #333;">Ditolak</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Service Type Filter -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-size: 0.9rem; font-weight: 500;">Tipe:</label>
+                        <select id="filterType" onchange="updateFilters()" style="
+                            background: rgba(255,255,255,0.2); 
+                            border: 1px solid rgba(255,255,255,0.3); 
+                            border-radius: 8px; 
+                            padding: 0.5rem 1rem; 
+                            color: white;
+                            font-size: 0.9rem;
+                            backdrop-filter: blur(10px);
+                            cursor: pointer;
+                        ">
+                            <option value="all" <?= $filter_type == 'all' ? 'selected' : '' ?> style="color: #333;">Semua Tipe</option>
+                            <option value="studio" <?= $filter_type == 'studio' ? 'selected' : '' ?> style="color: #333;">🏢 Studio</option>
+                            <option value="home_service" <?= $filter_type == 'home_service' ? 'selected' : '' ?> style="color: #333;">🏠 Home Service</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Reset Filter Button -->
+                    <?php if ($filter_status != 'all' || $filter_type != 'all'): ?>
+                    <button onclick="window.location.href='admin.php'" style="
+                        background: rgba(239, 68, 68, 0.8);
+                        border: 1px solid rgba(239, 68, 68, 0.4);
+                        border-radius: 8px;
+                        padding: 0.5rem 1rem;
                         color: white;
                         font-size: 0.9rem;
-                        backdrop-filter: blur(10px);
                         cursor: pointer;
-                    ">
-                        <option value="all" <?= $filter_status == 'all' ? 'selected' : '' ?> style="color: #333;">Semua Status</option>
-                        <option value="pending" <?= $filter_status == 'pending' ? 'selected' : '' ?> style="color: #333;">Menunggu</option>
-                        <option value="confirmed" <?= $filter_status == 'confirmed' ? 'selected' : '' ?> style="color: #333;">Dikonfirmasi</option>
-                        <option value="cancelled" <?= $filter_status == 'cancelled' ? 'selected' : '' ?> style="color: #333;">Dibatalkan</option>
-                        <option value="rejected" <?= $filter_status == 'rejected' ? 'selected' : '' ?> style="color: #333;">Ditolak</option>
-                    </select>
+                        backdrop-filter: blur(10px);
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.background='rgba(239, 68, 68, 1)'" 
+                       onmouseout="this.style.background='rgba(239, 68, 68, 0.8)'">
+                        🗑️ Reset
+                    </button>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -268,8 +353,10 @@ $stats = $conn->query($stats_query)->fetch_assoc();
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">User</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Kontak</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Layanan</th>
+                                <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Tipe</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Tanggal</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Waktu</th>
+                                <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Alamat</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Harga</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Status</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Ubah Status</th>
@@ -286,10 +373,216 @@ $stats = $conn->query($stats_query)->fetch_assoc();
                                         <div style="font-weight: 600; color: #334155; margin-bottom: 0.2rem;"><?= htmlspecialchars($booking['user_name']) ?></div>
                                         <div style="font-size: 0.8rem; color: #64748b;"><?= htmlspecialchars($booking['user_email']) ?></div>
                                     </td>
-                                    <td style="padding: 1rem; color: #475569;"><?= htmlspecialchars($booking['user_phone']) ?></td>
+                                    <td style="padding: 1rem;">
+                                        <div style="color: #475569; font-weight: 500; margin-bottom: 0.3rem;">
+                                            <?= htmlspecialchars($booking['user_phone']) ?>
+                                        </div>
+                                        <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
+                                            <a href="tel:<?= htmlspecialchars($booking['user_phone']) ?>" 
+                                               style="
+                                                   display: inline-flex;
+                                                   align-items: center;
+                                                   gap: 0.3rem;
+                                                   padding: 0.3rem 0.6rem;
+                                                   background: linear-gradient(135deg, #10b981, #059669);
+                                                   color: white;
+                                                   text-decoration: none;
+                                                   border-radius: 5px;
+                                                   font-size: 0.75rem;
+                                                   font-weight: 600;
+                                                   transition: all 0.3s ease;
+                                               "
+                                               onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 2px 8px rgba(16,185,129,0.3)'"
+                                               onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'"
+                                               title="Hubungi <?= htmlspecialchars($booking['user_name']) ?>">
+                                                📞 Call
+                                            </a>
+                                            
+                                            <?php 
+                                            // Format phone for WhatsApp (remove +, spaces, dashes)
+                                            $wa_phone = preg_replace('/[^0-9]/', '', $booking['user_phone']);
+                                            if (substr($wa_phone, 0, 1) == '0') {
+                                                $wa_phone = '62' . substr($wa_phone, 1); // Replace leading 0 with 62 for Indonesia
+                                            }
+                                            ?>
+                                            <a href="https://wa.me/<?= $wa_phone ?>?text=Halo%20<?= urlencode($booking['user_name']) ?>,%20ini%20dari%20PierceFlow%20Studio%20mengenai%20booking%20Anda%20pada%20<?= urlencode(date('d/m/Y', strtotime($booking['date']))) ?>%20jam%20<?= urlencode(date('H:i', strtotime($booking['time']))) ?>" 
+                                               target="_blank"
+                                               style="
+                                                   display: inline-flex;
+                                                   align-items: center;
+                                                   gap: 0.3rem;
+                                                   padding: 0.3rem 0.6rem;
+                                                   background: linear-gradient(135deg, #25d366, #20ba5a);
+                                                   color: white;
+                                                   text-decoration: none;
+                                                   border-radius: 5px;
+                                                   font-size: 0.75rem;
+                                                   font-weight: 600;
+                                                   transition: all 0.3s ease;
+                                               "
+                                               onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 2px 8px rgba(37,211,102,0.3)'"
+                                               onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'"
+                                               title="WhatsApp <?= htmlspecialchars($booking['user_name']) ?>">
+                                                💬 WA
+                                            </a>
+                                        </div>
+                                    </td>
                                     <td style="padding: 1rem; font-weight: 500; color: #334155;"><?= htmlspecialchars($booking['service_name']) ?></td>
+                                    <td style="padding: 1rem;">
+                                        <?php 
+                                        $service_type = $booking['service_type'] ?? 'studio';
+                                        $type_display = [
+                                            'studio' => ['text' => 'Studio', 'icon' => '🏢', 'color' => '#8b5cf6'],
+                                            'home_service' => ['text' => 'Home Service', 'icon' => '🏠', 'color' => '#10b981']
+                                        ];
+                                        $current_type = $type_display[$service_type];
+                                        ?>
+                                        <span style="
+                                            display: inline-flex;
+                                            align-items: center;
+                                            gap: 0.3rem;
+                                            padding: 0.4rem 0.8rem;
+                                            background: <?= $current_type['color'] ?>20;
+                                            color: <?= $current_type['color'] ?>;
+                                            border-radius: 15px;
+                                            font-size: 0.8rem;
+                                            font-weight: 600;
+                                            border: 1px solid <?= $current_type['color'] ?>40;
+                                        ">
+                                            <?= $current_type['icon'] ?> <?= $current_type['text'] ?>
+                                        </span>
+                                    </td>
                                     <td style="padding: 1rem; color: #475569;"><?= date('d/m/Y', strtotime($booking['date'])) ?></td>
                                     <td style="padding: 1rem; color: #475569; font-weight: 500;"><?= date('H:i', strtotime($booking['time'])) ?></td>
+                                    <td style="padding: 1rem; max-width: 200px;">
+                                        <?php 
+                                        $current_service_type = $booking['service_type'] ?? 'studio';
+                                        $current_address = $booking['address'] ?? '';
+                                        
+                                        if ($current_service_type === 'home_service'): 
+                                            if (!empty($current_address) && trim($current_address) !== ''): ?>
+                                            <div style="
+                                                font-size: 0.85rem;
+                                                color: #475569;
+                                                line-height: 1.4;
+                                                background: #f0fdf4;
+                                                padding: 0.8rem;
+                                                border-radius: 10px;
+                                                border-left: 3px solid #10b981;
+                                            ">
+                                                <div style="font-weight: 600; color: #10b981; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.3rem;">
+                                                    🏠 Alamat Customer:
+                                                </div>
+                                                <div style="margin-bottom: 0.8rem; color: #374151;">
+                                                    📍 <?= htmlspecialchars(substr($current_address, 0, 60)) ?><?= strlen($current_address) > 60 ? '...' : '' ?>
+                                                </div>
+                                                
+                                                <!-- Action Buttons -->
+                                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                                    <!-- Google Maps Button -->
+                                                    <a href="https://maps.google.com/?q=<?= urlencode($current_address) ?>" 
+                                                       target="_blank" 
+                                                       style="
+                                                           display: inline-flex;
+                                                           align-items: center;
+                                                           gap: 0.3rem;
+                                                           padding: 0.4rem 0.8rem;
+                                                           background: linear-gradient(135deg, #10b981, #059669);
+                                                           color: white;
+                                                           text-decoration: none;
+                                                           border-radius: 6px;
+                                                           font-size: 0.75rem;
+                                                           font-weight: 600;
+                                                           transition: all 0.3s ease;
+                                                           border: none;
+                                                           cursor: pointer;
+                                                       "
+                                                       onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'"
+                                                       onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'"
+                                                       title="Buka di Google Maps">
+                                                        🗺️ Maps
+                                                    </a>
+                                                    
+                                                    <!-- Copy Address Button -->
+                                                    <button onclick="copyAddress('<?= addslashes($current_address) ?>', <?= $booking['id'] ?>)"
+                                                            style="
+                                                                display: inline-flex;
+                                                                align-items: center;
+                                                                gap: 0.3rem;
+                                                                padding: 0.4rem 0.8rem;
+                                                                background: linear-gradient(135deg, #6366f1, #4f46e5);
+                                                                color: white;
+                                                                border: none;
+                                                                border-radius: 6px;
+                                                                font-size: 0.75rem;
+                                                                font-weight: 600;
+                                                                cursor: pointer;
+                                                                transition: all 0.3s ease;
+                                                            "
+                                                            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(99,102,241,0.3)'"
+                                                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'"
+                                                            title="Copy alamat ke clipboard">
+                                                        📋 Copy
+                                                    </button>
+                                                    
+                                                    <!-- Full Address Modal Button -->
+                                                    <button onclick="showFullAddress('<?= addslashes($current_address) ?>', '<?= htmlspecialchars($booking['user_name']) ?>')"
+                                                            style="
+                                                                display: inline-flex;
+                                                                align-items: center;
+                                                                gap: 0.3rem;
+                                                                padding: 0.4rem 0.8rem;
+                                                                background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+                                                                color: white;
+                                                                border: none;
+                                                                border-radius: 6px;
+                                                                font-size: 0.75rem;
+                                                                font-weight: 600;
+                                                                cursor: pointer;
+                                                                transition: all 0.3s ease;
+                                                            "
+                                                            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(139,92,246,0.3)'"
+                                                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'"
+                                                            title="Lihat alamat lengkap">
+                                                        👁️ Detail
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        <?php else: // home_service but no address ?>
+                                            <div style="
+                                                font-size: 0.85rem;
+                                                color: #ef4444;
+                                                font-weight: 500;
+                                                background: #fef2f2;
+                                                padding: 0.5rem;
+                                                border-radius: 8px;
+                                                border-left: 3px solid #ef4444;
+                                                display: flex;
+                                                align-items: center;
+                                                gap: 0.3rem;
+                                            ">
+                                                ⚠️ Alamat belum diisi!
+                                            </div>
+                                        <?php endif; // end home_service check
+                                        elseif ($current_service_type === 'studio'): ?>
+                                            <div style="
+                                                font-size: 0.85rem;
+                                                color: #8b5cf6;
+                                                font-weight: 500;
+                                                background: #faf5ff;
+                                                padding: 0.5rem;
+                                                border-radius: 8px;
+                                                border-left: 3px solid #8b5cf6;
+                                                display: flex;
+                                                align-items: center;
+                                                gap: 0.3rem;
+                                            ">
+                                                🏢 PierceFlow Studio
+                                            </div>
+                                        <?php else: ?>
+                                            <span style="color: #94a3b8; font-size: 0.85rem;">-</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td style="padding: 1rem; font-weight: 600; color: #059669;">Rp <?= number_format($booking['price'], 0, ',', '.') ?></td>
                                     <td style="padding: 1rem;">
                                         <?php
@@ -312,7 +605,17 @@ $stats = $conn->query($stats_query)->fetch_assoc();
                                         </span>
                                     </td>
                                     <td style="padding: 1rem;">
-                                        <form method="POST" action="admin.php<?= isset($_GET['filter']) && $_GET['filter'] != 'all' ? '?filter=' . urlencode($_GET['filter']) : '' ?>" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;" onsubmit="return confirmUpdate(<?= $booking['id'] ?>, this)">
+                                        <?php
+                                        $form_params = [];
+                                        if (isset($_GET['filter']) && $_GET['filter'] != 'all') {
+                                            $form_params[] = 'filter=' . urlencode($_GET['filter']);
+                                        }
+                                        if (isset($_GET['type']) && $_GET['type'] != 'all') {
+                                            $form_params[] = 'type=' . urlencode($_GET['type']);
+                                        }
+                                        $form_action = 'admin.php' . (!empty($form_params) ? '?' . implode('&', $form_params) : '');
+                                        ?>
+                                        <form method="POST" action="<?= $form_action ?>" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;" onsubmit="return confirmUpdate(<?= $booking['id'] ?>, this)">
                                             <input type="hidden" name="booking_id" value="<?= $booking['id'] ?>">
                                             <input type="hidden" name="update_status" value="1">
                                             <select name="status" id="status_<?= $booking['id'] ?>" style="
@@ -390,11 +693,11 @@ $stats = $conn->query($stats_query)->fetch_assoc();
         <h3 style="text-align: center; margin-bottom: 2rem; color: var(--primary-color);">🚀 Quick Actions</h3>
         <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
             
-            <!-- Kelola Layanan -->
-            <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; cursor: pointer; transition: transform 0.3s;" onclick="location.href='manage_services.php'">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">⚙️</div>
-                <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">Kelola Layanan</div>
-                <div style="opacity: 0.9; font-size: 0.9rem;">Tambah, edit, dan hapus layanan piercing</div>
+            <!-- Analytics -->
+            <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; cursor: pointer; transition: transform 0.3s;" onclick="window.scrollTo(0, 0);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">Analytics</div>
+                <div style="opacity: 0.9; font-size: 0.9rem;">Lihat statistik booking dan performa</div>
             </div>
             
             <!-- Kelola User -->
@@ -443,6 +746,30 @@ $stats = $conn->query($stats_query)->fetch_assoc();
     </style>
     
     <script>
+    function updateFilters() {
+        const statusFilter = document.getElementById('filterStatus').value;
+        const typeFilter = document.getElementById('filterType').value;
+        
+        let url = 'admin.php?';
+        let params = [];
+        
+        if (statusFilter !== 'all') {
+            params.push('filter=' + encodeURIComponent(statusFilter));
+        }
+        
+        if (typeFilter !== 'all') {
+            params.push('type=' + encodeURIComponent(typeFilter));
+        }
+        
+        if (params.length > 0) {
+            url += params.join('&');
+        } else {
+            url = 'admin.php';
+        }
+        
+        window.location.href = url;
+    }
+    
     function confirmUpdate(bookingId, form) {
         const selectElement = form.querySelector('select[name="status"]');
         const newStatus = selectElement.value;
@@ -530,7 +857,189 @@ $stats = $conn->query($stats_query)->fetch_assoc();
             }, 5000);
         });
     });
+    
+    // Address Management Functions
+    function copyAddress(address, bookingId) {
+        navigator.clipboard.writeText(address).then(function() {
+            // Show success notification
+            showNotification('✅ Alamat booking #' + bookingId + ' berhasil di-copy!', 'success');
+        }).catch(function(err) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = address;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showNotification('✅ Alamat berhasil di-copy!', 'success');
+        });
+    }
+    
+    function showFullAddress(address, userName) {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        `;
+        
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 2rem;
+                border-radius: 15px;
+                max-width: 500px;
+                width: 90%;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+                animation: modalSlideIn 0.3s ease-out;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3 style="margin: 0; color: #10b981; display: flex; align-items: center; gap: 0.5rem;">
+                        🏠 Alamat Home Service
+                    </h3>
+                    <button onclick="this.closest('.modal').remove()" style="
+                        background: #ef4444;
+                        color: white;
+                        border: none;
+                        border-radius: 50%;
+                        width: 30px;
+                        height: 30px;
+                        cursor: pointer;
+                        font-size: 1rem;
+                    ">×</button>
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
+                        👤 Customer: ${userName}
+                    </div>
+                </div>
+                
+                <div style="
+                    background: #f9fafb;
+                    padding: 1rem;
+                    border-radius: 8px;
+                    border-left: 4px solid #10b981;
+                    margin-bottom: 1.5rem;
+                    line-height: 1.6;
+                    color: #374151;
+                ">
+                    📍 ${address}
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button onclick="copyAddress('${address.replace(/'/g, "\\'")}', 'modal')" style="
+                        background: linear-gradient(135deg, #6366f1, #4f46e5);
+                        color: white;
+                        border: none;
+                        padding: 0.75rem 1.5rem;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                    ">📋 Copy Alamat</button>
+                    
+                    <a href="https://maps.google.com/?q=${encodeURIComponent(address)}" 
+                       target="_blank" 
+                       style="
+                           background: linear-gradient(135deg, #10b981, #059669);
+                           color: white;
+                           text-decoration: none;
+                           padding: 0.75rem 1.5rem;
+                           border-radius: 8px;
+                           font-weight: 600;
+                           display: flex;
+                           align-items: center;
+                           gap: 0.5rem;
+                       ">🗺️ Buka Maps</a>
+                </div>
+            </div>
+        `;
+        
+        modal.className = 'modal';
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
+        document.body.appendChild(modal);
+    }
+    
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        const bgColor = type === 'success' ? '#10b981' : '#ef4444';
+        
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${bgColor};
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: slideInRight 0.3s ease-out;
+        `;
+        
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
     </script>
+    
+    <style>
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: scale(0.7) translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+    
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes slideOutRight {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+    }
+    </style>
 </div>
 
 <?php require_once 'includes/footer.php'; ?>
