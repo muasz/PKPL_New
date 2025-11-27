@@ -120,8 +120,6 @@ $stats_query = "SELECT
     COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed_bookings,
     COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_bookings,
     COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_bookings,
-    COUNT(CASE WHEN service_type = 'studio' THEN 1 END) as studio_bookings,
-    COUNT(CASE WHEN service_type = 'home_service' THEN 1 END) as home_service_bookings,
     SUM(CASE WHEN status = 'confirmed' THEN s.price ELSE 0 END) as total_revenue
     FROM bookings b
     JOIN services s ON b.service_id = s.id";
@@ -130,17 +128,12 @@ $stats = $conn->query($stats_query)->fetch_assoc();
 // Total users
 $users_count = $conn->query("SELECT COUNT(*) as total FROM users WHERE role = 'user'")->fetch_assoc()['total'];
 
-// Filter berdasarkan status dan service type
+// Filter berdasarkan status
 $filter_status = isset($_GET['filter']) ? $_GET['filter'] : 'all';
-$filter_type = isset($_GET['type']) ? $_GET['type'] : 'all';
 $filter_conditions = [];
 
 if ($filter_status != 'all') {
     $filter_conditions[] = "b.status = '" . $conn->real_escape_string($filter_status) . "'";
-}
-
-if ($filter_type != 'all') {
-    $filter_conditions[] = "b.service_type = '" . $conn->real_escape_string($filter_type) . "'";
 }
 
 $filter_condition = '';
@@ -211,34 +204,6 @@ $stats = $conn->query($stats_query)->fetch_assoc();
             <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.3rem;">Pengguna terdaftar</div>
         </div>
         
-        <!-- Service Type Distribution -->
-        <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; position: relative; overflow: hidden; padding: 2rem;">
-            <div style="position: absolute; top: 10px; right: 15px; font-size: 2.5rem; opacity: 0.3;">🏢🏠</div>
-            <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <div class="stat-label" style="color: rgba(255,255,255,0.95); font-weight: 600; font-size: 1.1rem;">Tipe Layanan</div>
-                </div>
-                <div style="display: flex; justify-content: space-between; gap: 1rem;">
-                    <div style="text-align: center; flex: 1;">
-                        <div style="font-size: 1.8rem; font-weight: bold; color: white; margin-bottom: 0.2rem;">
-                            <?= $stats['studio_bookings'] ?>
-                        </div>
-                        <div style="font-size: 0.8rem; opacity: 0.9; display: flex; align-items: center; justify-content: center; gap: 0.3rem;">
-                            🏢 Studio
-                        </div>
-                    </div>
-                    <div style="text-align: center; flex: 1;">
-                        <div style="font-size: 1.8rem; font-weight: bold; color: white; margin-bottom: 0.2rem;">
-                            <?= $stats['home_service_bookings'] ?>
-                        </div>
-                        <div style="font-size: 0.8rem; opacity: 0.9; display: flex; align-items: center; justify-content: center; gap: 0.3rem;">
-                            🏠 Home Service
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
         <!-- Cancelled/Rejected -->
         <div class="stat-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; position: relative; overflow: hidden; padding: 2rem;">
             <div style="position: absolute; top: 15px; right: 20px; font-size: 3rem; opacity: 0.3;">❌</div>
@@ -302,27 +267,8 @@ $stats = $conn->query($stats_query)->fetch_assoc();
                         </select>
                     </div>
                     
-                    <!-- Service Type Filter -->
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <label style="font-size: 0.9rem; font-weight: 500;">Tipe:</label>
-                        <select id="filterType" onchange="updateFilters()" style="
-                            background: rgba(255,255,255,0.2); 
-                            border: 1px solid rgba(255,255,255,0.3); 
-                            border-radius: 8px; 
-                            padding: 0.5rem 1rem; 
-                            color: white;
-                            font-size: 0.9rem;
-                            backdrop-filter: blur(10px);
-                            cursor: pointer;
-                        ">
-                            <option value="all" <?= $filter_type == 'all' ? 'selected' : '' ?> style="color: #333;">Semua Tipe</option>
-                            <option value="studio" <?= $filter_type == 'studio' ? 'selected' : '' ?> style="color: #333;">🏢 Studio</option>
-                            <option value="home_service" <?= $filter_type == 'home_service' ? 'selected' : '' ?> style="color: #333;">🏠 Home Service</option>
-                        </select>
-                    </div>
-                    
                     <!-- Reset Filter Button -->
-                    <?php if ($filter_status != 'all' || $filter_type != 'all'): ?>
+                    <?php if ($filter_status != 'all'): ?>
                     <button onclick="window.location.href='admin.php'" style="
                         background: rgba(239, 68, 68, 0.8);
                         border: 1px solid rgba(239, 68, 68, 0.4);
@@ -353,7 +299,6 @@ $stats = $conn->query($stats_query)->fetch_assoc();
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">User</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Kontak</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Layanan</th>
-                                <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Tipe</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Tanggal</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Waktu</th>
                                 <th style="padding: 1.2rem 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0;">Alamat</th>
@@ -428,39 +373,13 @@ $stats = $conn->query($stats_query)->fetch_assoc();
                                         </div>
                                     </td>
                                     <td style="padding: 1rem; font-weight: 500; color: #334155;"><?= htmlspecialchars($booking['service_name']) ?></td>
-                                    <td style="padding: 1rem;">
-                                        <?php 
-                                        $service_type = $booking['service_type'] ?? 'studio';
-                                        $type_display = [
-                                            'studio' => ['text' => 'Studio', 'icon' => '🏢', 'color' => '#8b5cf6'],
-                                            'home_service' => ['text' => 'Home Service', 'icon' => '🏠', 'color' => '#10b981']
-                                        ];
-                                        $current_type = $type_display[$service_type];
-                                        ?>
-                                        <span style="
-                                            display: inline-flex;
-                                            align-items: center;
-                                            gap: 0.3rem;
-                                            padding: 0.4rem 0.8rem;
-                                            background: <?= $current_type['color'] ?>20;
-                                            color: <?= $current_type['color'] ?>;
-                                            border-radius: 15px;
-                                            font-size: 0.8rem;
-                                            font-weight: 600;
-                                            border: 1px solid <?= $current_type['color'] ?>40;
-                                        ">
-                                            <?= $current_type['icon'] ?> <?= $current_type['text'] ?>
-                                        </span>
-                                    </td>
                                     <td style="padding: 1rem; color: #475569;"><?= date('d/m/Y', strtotime($booking['date'])) ?></td>
                                     <td style="padding: 1rem; color: #475569; font-weight: 500;"><?= date('H:i', strtotime($booking['time'])) ?></td>
                                     <td style="padding: 1rem; max-width: 200px;">
                                         <?php 
-                                        $current_service_type = $booking['service_type'] ?? 'studio';
                                         $current_address = $booking['address'] ?? '';
                                         
-                                        if ($current_service_type === 'home_service'): 
-                                            if (!empty($current_address) && trim($current_address) !== ''): ?>
+                                        if (!empty($current_address) && trim($current_address) !== ''): ?>
                                             <div style="
                                                 font-size: 0.85rem;
                                                 color: #475569;
@@ -563,24 +482,6 @@ $stats = $conn->query($stats_query)->fetch_assoc();
                                             ">
                                                 ⚠️ Alamat belum diisi!
                                             </div>
-                                        <?php endif; // end home_service check
-                                        elseif ($current_service_type === 'studio'): ?>
-                                            <div style="
-                                                font-size: 0.85rem;
-                                                color: #8b5cf6;
-                                                font-weight: 500;
-                                                background: #faf5ff;
-                                                padding: 0.5rem;
-                                                border-radius: 8px;
-                                                border-left: 3px solid #8b5cf6;
-                                                display: flex;
-                                                align-items: center;
-                                                gap: 0.3rem;
-                                            ">
-                                                🏢 PierceFlow Studio
-                                            </div>
-                                        <?php else: ?>
-                                            <span style="color: #94a3b8; font-size: 0.85rem;">-</span>
                                         <?php endif; ?>
                                     </td>
                                     <td style="padding: 1rem; font-weight: 600; color: #059669;">Rp <?= number_format($booking['price'], 0, ',', '.') ?></td>
